@@ -122,6 +122,18 @@ namespace TLogs
             {
                 File.Copy(strTeams + "\\logs.txt", strTLogs + "\\logs.txt", true);
             }
+            else if (strPath == strDownloads)
+            {
+                foreach (string file in logFiles)
+                {
+                    if (file.Contains("MSTeams Diagnostics Log"))
+                    {
+                        strFile = Path.GetFileName(file);
+                        strDestFile = Path.Combine(strTLogs, strFile);
+                        File.Copy(file, strDestFile, true);
+                    }
+                }
+            }
             else
             {
                 foreach (string file in logFiles)
