@@ -51,6 +51,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="bin\Debug\TLogs.exe.config" />
+    <None Include="bin\Release\TLogs.exe.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="bin\Debug\TLogs.exe" />
+    <Content Include="bin\Debug\TLogs.pdb" />
+    <Content Include="bin\Release\TLogs.exe" />
+    <Content Include="bin\Release\TLogs.pdb" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
