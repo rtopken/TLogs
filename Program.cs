@@ -56,19 +56,20 @@ namespace TLogs
                 GetTeamsFiles(strFold); 
             }
 
-            Console.WriteLine("Zipping the files to TLogs.zip...");
-
-            var files = Directory.GetFiles(strTLogs);
-
             if (bGotDiagFiles == true)
             {
+                Console.WriteLine("Zipping the files to TLogs.zip...");
                 ZipDiagLogs();
+
+                Console.WriteLine("Removing log files now that they have been zipped up...");
+                DeleteTLogsFiles();
             }
 
-            // Now open Downloads
+            Console.WriteLine("Opening Explorer to the TLogs folder...");
             Process.Start(strTLogs);
 
             Console.WriteLine("Done!");
+            
             return;
         }
 
@@ -130,7 +131,7 @@ namespace TLogs
                     {
                         strFile = Path.GetFileName(file);
                         strDestFile = Path.Combine(strTLogs, strFile);
-                        File.Copy(file, strDestFile, true);
+                        File.Move(file, strDestFile);
                     }
                 }
             }
@@ -177,6 +178,18 @@ namespace TLogs
             }
         }
 
+        static void DeleteTLogsFiles()
+        {
+            string[] strFiles = Directory.GetFiles(strTLogs);
+            foreach (string file in strFiles)
+            {
+                if (file.Contains("TLogs.zip"))
+                    continue;
+                else
+                    File.Delete(file);
+            }
+        }
+
         // Get the current Teams Diagnostic Log files placed in the "Downloads" folder
         static void GetTeamsDiag()
         {
@@ -195,7 +208,7 @@ namespace TLogs
                 {
                     if (file.Contains("MSTeams Diagnostics Log"))
                     {
-                        Console.WriteLine("Successfully created MSTeams Diagnostic logs.");
+                        Console.WriteLine("Successfully generated MSTeams Diagnostic logs.");
                         bGotDiagFiles = true;
                         break;
                     }
@@ -204,6 +217,11 @@ namespace TLogs
                 if (bGotDiagFiles == true)
                     break;
             }
+
+            if (bGotDiagFiles == true)
+                return;
+            else
+                Console.WriteLine("Could not generate the MSTeams Diagnostic logs.");
         }
 
         /*
