@@ -40,16 +40,36 @@ namespace TLogs
                 strMedia,
                 strDownloads,
             };
+            bool bGetDiags = false;
 
+            Console.WriteLine("Ensuring there is a TLogs directory under Downloads.");
             CreateTLogsDir();
+            Console.WriteLine("Removing old logs if needed.");
             DeleteOldLogs();
 
             Console.WriteLine("Getting Teams Diagnostic Logs...");
-            GetTeamsDiag();  // get MSTeams diag logs from Teams - they go in Downloads when created
+            bGetDiags = GetTeamsDiag();
+            if (bGetDiags == false)
+            {
+                Console.WriteLine("Can't find the correct Teams window. It might be minimized so attempting to make it active.");
+                LaunchTeams(); // might be that Teams is minimized - so launch it to get the UI and try again.
+                System.Threading.Thread.Sleep(1000);
+                bGetDiags = GetTeamsDiag();
+            }
+            
+            if (bGetDiags == false)
+            {
+                Console.WriteLine("Please make sure Teams is running and not minimized to the taskbar.");
+                Console.WriteLine("Then run TLogs again to get the logs.");
+                Console.WriteLine("Done!");
+
+                return;
+            }
+             
 
             System.Threading.Thread.Sleep(1000);   // A pause to ensure the diag files are where they need to be...
 
-            Console.WriteLine("Copying logs to the Downloads\\TLogs folder...");
+            Console.WriteLine("Copying logs to the Downloads\\TLogs folder.");
             // now copy other logs we want to the Downloads folder
             foreach (string strFold in strFolders)
             {
@@ -58,17 +78,17 @@ namespace TLogs
 
             if (bGotDiagFiles == true)
             {
-                Console.WriteLine("Zipping the files to TLogs.zip...");
+                Console.WriteLine("Zipping the files to TLogs.zip.");
                 ZipDiagLogs();
 
-                Console.WriteLine("Removing log files now that they have been zipped up...");
+                Console.WriteLine("Removing log files now that they have been zipped up.");
                 DeleteTLogsFiles();
             }
 
-            Console.WriteLine("Opening Explorer to the TLogs folder...");
+            Console.WriteLine("Opening Explorer to the TLogs folder.");
             Process.Start(strTLogs);
 
-            Console.WriteLine("Done!");
+            Console.WriteLine("\r\nDone!");
             
             return;
         }
@@ -121,10 +141,12 @@ namespace TLogs
 
             if(strPath == strTeams)
             {
+                Console.WriteLine("Getting logs.txt from the Teams folder.");
                 File.Copy(strTeams + "\\logs.txt", strTLogs + "\\logs.txt", true);
             }
             else if (strPath == strDownloads)
             {
+                Console.WriteLine("Getting MSTeams Diagnostic Log files from the Downloads folder.");
                 foreach (string file in logFiles)
                 {
                     if (file.Contains("MSTeams Diagnostics Log"))
@@ -137,6 +159,11 @@ namespace TLogs
             }
             else
             {
+                if (strPath == strAddin)
+                    Console.WriteLine("Getting log files from the Addin folder.");
+                else if (strPath == strMedia)
+                    Console.WriteLine("Getting log files from the Media folder.");
+
                 foreach (string file in logFiles)
                 {
                     strFile = Path.GetFileName(file);
@@ -191,24 +218,26 @@ namespace TLogs
         }
 
         // Get the current Teams Diagnostic Log files placed in the "Downloads" folder
-        static void GetTeamsDiag()
+        static bool GetTeamsDiag()
         {
+            Console.WriteLine("Putting Teams windows in the foreground in order to get the diagnostic logs.");
             var hWnds = FindWindowsWithText("| Microsoft Teams");  // Will find the Teams UI windows
             
             // now iterate through them - one will get us our logs...
             foreach (var handle in hWnds)
             {
                 SetForegroundWindow(handle); // Make it foreground so that the below keystrokes will work to get the files
+                System.Threading.Thread.Sleep(500); // Pause half a second to ensure foreground
                 SendKeys.SendWait("^%+1");   // Send - CRTL(^) + ALT(%) + SHIFT(+) + 1 
 
-                System.Threading.Thread.Sleep(1000);  //need just a bit of time for the diag files to get into the folder...
+                System.Threading.Thread.Sleep(1500);  //pause for a bit to let the diag files to get into the folder...
 
                 string[] strFiles = Directory.GetFiles(strDownloads);
                 foreach (string file in strFiles)
                 {
                     if (file.Contains("MSTeams Diagnostics Log"))
                     {
-                        Console.WriteLine("Successfully generated MSTeams Diagnostic logs.");
+                        Console.WriteLine("Successfully generated MSTeams Diagnostics Logs.");
                         bGotDiagFiles = true;
                         break;
                     }
@@ -219,9 +248,9 @@ namespace TLogs
             }
 
             if (bGotDiagFiles == true)
-                return;
+                return true;
             else
-                Console.WriteLine("Could not generate the MSTeams Diagnostic logs.");
+                return false;
         }
 
         /*
