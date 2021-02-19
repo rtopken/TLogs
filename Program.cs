@@ -38,7 +38,7 @@ namespace TLogs
                 strTeams,
                 strAddin,
                 strMedia,
-                strDownloads,
+                strDownloads
             };
             bool bGetDiags = false;
 
@@ -67,7 +67,7 @@ namespace TLogs
             }
              
 
-            System.Threading.Thread.Sleep(1000);   // A pause to ensure the diag files are where they need to be...
+            System.Threading.Thread.Sleep(3000);   // A pause to ensure the diag files are where they need to be...
 
             Console.WriteLine("Copying logs to the Downloads\\TLogs folder.");
             // now copy other logs we want to the Downloads folder
@@ -83,9 +83,10 @@ namespace TLogs
 
                 Console.WriteLine("Removing log files now that they have been zipped up.");
                 DeleteTLogsFiles();
+                DeleteDownloadsLogs();
             }
 
-            Console.WriteLine("Opening Explorer to the TLogs folder.");
+            Console.WriteLine("Opening Explorer to the Downloads folder.");
             Process.Start(strTLogs);
 
             Console.WriteLine("\r\nDone!");
@@ -95,23 +96,13 @@ namespace TLogs
 
         static void ZipDiagLogs()
         {
-            string strFileName = "";
-            var files = Directory.GetFiles(strTLogs);
+            string dirPath = strTLogs;
+            string zipPath = strDownloads + "\\TLogs.zip";
+            string zipFinal = strTLogs + "\\TLogs.zip";
 
-            using (FileStream zipStream = new FileStream(strTLogs + "\\TLogs.zip", FileMode.Create))
-            {
-                using (ZipArchive zipFile = new ZipArchive(zipStream, ZipArchiveMode.Create))
-                {
-                    foreach (var file in files)
-                    {
-                        strFileName = Path.GetFileName(file);
-                        if (strFileName.ToLower() != "desktop.ini")
-                        {
-                            zipFile.CreateEntryFromFile(file, strFileName);
-                        }
-                    }
-                }
-            }
+
+            ZipFile.CreateFromDirectory(dirPath, zipPath);
+            File.Move(zipPath, zipFinal);
         }
 
         // Create the TLogs folder under Downloads
@@ -132,28 +123,75 @@ namespace TLogs
             /*
              * Want to get:  "MSTeams Diagnostics Log xxxxx.txt" in Downloads - they will be there from GetTeamsDiag function
              *               "logs.txt" from AppData\Roaming\microsoft\teams
+             *               "old_logs_xxx.txt" from AppData\Roaming\microsoft\teams
              *               "teams-meeting-addin*.*" from AppData\Roaming\microsoft\teams\meeting-addin
              *               All files from AppData\Roaming\microsoft\teams\media-stack
             */
             string strFile = "";
             string strDestFile = "";
+            string strDir = "";
+            string strDestDir = "";
             string[] logFiles = Directory.GetFiles(strPath);
+            bool bMoveDir = false;
 
             if(strPath == strTeams)
             {
-                Console.WriteLine("Getting logs.txt from the Teams folder.");
+                // get logs.txt and any old_logs_xxx.txt files
+                Console.WriteLine("Getting logs from the Teams folder.");
+
+                foreach (string file in logFiles)
+                {
+                    if (file.Contains("old_logs"))
+                    {
+                        strFile = Path.GetFileName(file);
+                        strDestFile = Path.Combine(strTLogs, strFile);
+                        File.Copy(file, strDestFile);
+                    }
+                }
+
                 File.Copy(strTeams + "\\logs.txt", strTLogs + "\\logs.txt", true);
             }
             else if (strPath == strDownloads)
             {
                 Console.WriteLine("Getting MSTeams Diagnostic Log files from the Downloads folder.");
-                foreach (string file in logFiles)
+
+                // see if there is a directory for the diagnostic files first - and get them from there.
+                string[] strDirs = Directory.GetDirectories(strDownloads);
+                foreach (string dir in strDirs)
                 {
-                    if (file.Contains("MSTeams Diagnostics Log"))
+                    if (dir.Contains("MSTeams Diagnostics Log"))
                     {
-                        strFile = Path.GetFileName(file);
-                        strDestFile = Path.Combine(strTLogs, strFile);
-                        File.Move(file, strDestFile);
+                        strDir = Path.GetFileName(dir);
+                        strDestDir = Path.Combine(strTLogs, strDir);
+                        Directory.Move(dir, strDestDir);
+                        bMoveDir = true;
+                    }
+                }
+
+                if (bMoveDir == false)
+                {
+                    foreach (string file in logFiles)
+                    {
+                        if (file.Contains("MSTeams Diagnostics Log"))
+                        {
+                            strFile = Path.GetFileName(file);
+                            strDestFile = Path.Combine(strTLogs, strFile);
+                            File.Move(file, strDestFile);
+                        }
+
+                        if (file.Contains("desktop-config.json"))
+                        {
+                            strFile = Path.GetFileName(file);
+                            strDestFile = Path.Combine(strTLogs, strFile);
+                            File.Move(file, strDestFile);
+                        }
+
+                        if (file.Contains("settings.json"))
+                        {
+                            strFile = Path.GetFileName(file);
+                            strDestFile = Path.Combine(strTLogs, strFile);
+                            File.Move(file, strDestFile);
+                        }
                     }
                 }
             }
@@ -182,8 +220,22 @@ namespace TLogs
                 strDownloads,
             };
 
+            // delete any directories that are MSTeams diagnostic log directories. We will be getting a new one when we pull new logs.
+            foreach (string dir in strFolders)
+            {
+                string[] strDirs = Directory.GetDirectories(dir);
+                foreach (string d in strDirs)
+                {
+                    if (d.Contains("MSTeams Diagnostics Log"))
+                    {
+                        Directory.Delete(d, true);
+                    }
+                }
+            }
+
             foreach (string folder in strFolders)
             {
+                // delete anything that is in the TLogs directory
                 string[] strFiles = Directory.GetFiles(folder);
                 if (folder.Contains("TLogs"))
                 {
@@ -192,11 +244,16 @@ namespace TLogs
                         File.Delete(file);
                     }
                 }
+                // delete diagnostic log files from Downloads if they are there
                 else
                 {
                     foreach (string file in strFiles)
                     {
                         if (file.Contains("MSTeams Diagnostics Log"))
+                        {
+                            File.Delete(file);
+                        }
+                        if (file.Contains("TLogs.zip"))
                         {
                             File.Delete(file);
                         }
@@ -214,6 +271,36 @@ namespace TLogs
                     continue;
                 else
                     File.Delete(file);
+            }
+
+            string[] strDirs = Directory.GetDirectories(strTLogs);
+            foreach (string d in strDirs)
+            {
+                if (d.Contains("MSTeams Diagnostics Log"))
+                {
+                    Directory.Delete(d, true);
+                }
+            }
+        }
+
+        static void DeleteDownloadsLogs()
+        {
+            string[] strFiles = Directory.GetFiles(strDownloads);
+            foreach (string file in strFiles)
+            {
+                if (file.Contains("MSTeams Diagnostics Log"))
+                {
+                    File.Delete(file);
+                }
+            }
+
+            string[] strDirs = Directory.GetDirectories(strDownloads);
+            foreach (string d in strDirs)
+            {
+                if (d.Contains("MSTeams Diagnostics Log"))
+                {
+                    Directory.Delete(d, true);
+                }
             }
         }
 
